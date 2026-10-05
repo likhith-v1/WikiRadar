@@ -9,6 +9,7 @@ __pycache__/
 
 # Project artifacts
 data/*.jsonl
+data/*.log
 !data/sample*.jsonl
 models/*.joblib
 
