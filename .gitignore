@@ -1,0 +1,16 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Project artifacts
+data/*.jsonl
+!data/sample*.jsonl
+models/*.joblib
+
+# OS
+.DS_Store
