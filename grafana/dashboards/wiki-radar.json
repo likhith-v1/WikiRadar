@@ -1,0 +1,10 @@
+{
+  "uid": "wiki-radar",
+  "title": "WikiRadar",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-30m", "to": "now" },
+  "timezone": "utc",
+  "panels": []
+}
