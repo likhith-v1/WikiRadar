@@ -1,7 +1,7 @@
 import ipaddress
 import json
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 
 REVERT_RE = re.compile(
@@ -60,3 +60,9 @@ def normalize(raw: dict) -> Edit | None:
 
 def to_json(edit: Edit) -> str:
     return json.dumps({**asdict(edit), "dt": edit.dt.isoformat()})
+
+
+def from_json(text: str | bytes) -> Edit:
+    record = json.loads(text)
+    record["dt"] = datetime.fromisoformat(record["dt"])
+    return Edit(**{f.name: record[f.name] for f in fields(Edit) if f.name in record})

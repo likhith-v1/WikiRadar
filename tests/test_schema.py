@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from wikiradar.schema import normalize, to_json
+from wikiradar.schema import from_json, normalize, to_json
 
 
 def raw_event(**overrides):
@@ -94,3 +94,10 @@ def test_to_json_writes_iso_utc_datetime():
 
 def test_null_comment_is_not_a_revert():
     assert normalize(raw_event(comment=None)).is_revert is False
+
+
+def test_from_json_round_trips_and_ignores_replay_orig_dt():
+    edit = normalize(raw_event())
+    record = json.loads(to_json(edit))
+    record["orig_dt"] = "2026-10-01T00:00:00+00:00"
+    assert from_json(json.dumps(record)) == edit

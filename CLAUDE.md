@@ -50,9 +50,9 @@ The data path is: Wikimedia SSE (or a recorded JSONL file) → `producer.py` →
 
 Design points that span several files:
 - **No train/serve skew.** Windowing and features live only in `wikiradar/features.py`, in a pure, I/O-free `WindowAggregator` plus `featurize` and `FEATURE_NAMES`. `train.py`, `processor.py` and `evaluate.py` all import it. `train.py` saves `FEATURE_NAMES` into the model artifact, and the processor asserts that they match. This is a graded point, so never duplicate the feature logic.
-- **Event time, not wall-clock time.** The processor uses 10 s tumbling windows aligned to epoch, with watermark = max `dt` minus 5 s. Late events are counted in `late_dropped`, not added. Empty windows are still emitted.
+- **Event time, not wall-clock time.** The processor uses 10 s tumbling windows aligned to epoch, with watermark = the slowest Kafka partition's max `dt` minus 5 s (one source for files). Late events are counted in `late_dropped`, not added. Empty windows are still emitted.
 - **Replay re-stamps timestamps** (PLAN §3.12), so replayed and injected (`dt = now`) events share one timeline. The original timestamp is kept only as `orig_dt`.
-- **At-least-once delivery.** Edits are inserted with `ON CONFLICT DO NOTHING`, and windows are upserted on `window_start`. Commit Kafka offsets only after the DB write.
+- **At-least-once delivery.** Edits are inserted with `ON CONFLICT DO NOTHING`, and windows are upserted on `window_start`. Commit Kafka offsets only after the DB write, and per partition only up to the first event of a still-open window (restart rebuilds open windows).
 - `wikiradar/attacks.py` is shared by `inject.py` (live) and `evaluate.py` (offline). Evaluation runs offline in batch, never on the live stack.
 
 ## Infrastructure gotchas

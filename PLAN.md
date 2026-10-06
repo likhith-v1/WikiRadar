@@ -55,7 +55,7 @@ Wikimedia EventStreams (SSE)          data/*.jsonl (recorded)
                             v
                  processor.py
                    - parse + dedupe
-                   - event-time 10 s tumbling windows (watermark = max_dt - 5 s)
+                   - event-time 10 s tumbling windows (watermark = slowest partition's max_dt - 5 s)
                    - features.py -> feature vector
                    - IsolationForest (models/iforest.joblib) -> score, flag, reason
                             v
@@ -156,7 +156,8 @@ Handle missing fields without crashing: count the event as dropped and increment
 ### 3.6 Windowing (`features.py`, `WindowAggregator`)
 
 - Tumbling windows of **10 seconds** aligned to epoch, keyed by event time `dt`.
-- Watermark = (max `dt` seen) minus **5 seconds**. A window closes and is emitted once `window_end <= watermark`.
+- Watermark = (max `dt` seen) minus **5 seconds**, taken per source: the minimum over Kafka partitions of each partition's max `dt` (files used by train and evaluate are one source). A window closes and is emitted once `window_end <= watermark`. Changed from a global max on 2026-10-06 with user approval: with a global max, catching up on one partition's backlog after a restart dropped the other partitions' events as late.
+- The processor commits each partition's offset only up to the first event of a still-open window, so a restart rebuilds open windows. On resume, re-read events of already-written windows are skipped (they are still inserted idempotently).
 - Events older than the watermark for an already-closed window are counted in `late_dropped`. They are not added.
 - Empty windows inside the observed range are emitted with zero counts (a gap is information too).
 - `WindowAggregator` is a pure class with no I/O: `add(edit) -> list[ClosedWindow]` and `flush() -> list[ClosedWindow]`. Training, live processing and evaluation all use it.
