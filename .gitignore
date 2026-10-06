@@ -11,7 +11,7 @@ __pycache__/
 data/*.jsonl
 data/*.log
 !data/sample*.jsonl
-models/*.joblib
+# models/iforest.joblib is committed so a fresh clone runs without retraining
 
 # OS
 .DS_Store

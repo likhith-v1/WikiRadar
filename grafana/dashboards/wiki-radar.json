@@ -1,10 +1,250 @@
 {
   "uid": "wiki-radar",
   "title": "WikiRadar",
-  "schemaVersion": 39,
-  "version": 1,
+  "description": "Live English Wikipedia edits: 10 s event-time windows scored by an IsolationForest",
+  "schemaVersion": 41,
+  "version": 2,
+  "editable": true,
+  "graphTooltip": 1,
   "refresh": "5s",
   "time": { "from": "now-30m", "to": "now" },
+  "timepicker": { "refresh_intervals": ["5s", "10s", "30s", "1m"] },
   "timezone": "utc",
-  "panels": []
+  "annotations": {
+    "list": [
+      {
+        "name": "Anomalies",
+        "enable": true,
+        "iconColor": "red",
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "wikiradar-pg" },
+        "target": {
+          "refId": "Anno",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT window_start AS time, window_end AS timeend, reason || CASE WHEN has_synthetic THEN ' [synthetic]' ELSE '' END AS text FROM window_metrics WHERE is_anomaly AND $__timeFilter(window_start) ORDER BY 1"
+        },
+        "filter": { "exclude": false, "ids": [5, 6] }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Edits / min",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "wikiradar-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT edits_last_min AS \"edits/min\" FROM current_state WHERE $__timeFilter(updated_at)"
+        }
+      ],
+      "fieldConfig": { "defaults": { "decimals": 0, "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Bot % (last 5 min)",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "wikiradar-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT bot_pct_last_5m AS \"bot %\" FROM current_state WHERE $__timeFilter(updated_at)"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 1, "color": { "mode": "fixed", "fixedColor": "purple" } }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Anon % (last 5 min)",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "wikiradar-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT anon_pct_last_5m AS \"anon %\" FROM current_state WHERE $__timeFilter(updated_at)"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 1, "color": { "mode": "fixed", "fixedColor": "orange" } }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Anomalies (last hour)",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "wikiradar-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT anomalies_last_hour AS anomalies FROM current_state WHERE $__timeFilter(updated_at)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Edits per 10 s window (red marks = anomalies)",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 9 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "wikiradar-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT window_start AS time, n_events AS edits FROM window_metrics WHERE $__timeFilter(window_start) ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "never", "spanNulls": false }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "showLegend": false }, "tooltip": { "mode": "single" } }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Anomaly score (above 0 = flagged)",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 9 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "wikiradar-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT window_start AS time, score FROM window_metrics WHERE $__timeFilter(window_start) ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 3,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 0 } ] },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "gradientMode": "scheme",
+            "thresholdsStyle": { "mode": "line+area" }
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "showLegend": false }, "tooltip": { "mode": "single" } }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Who is editing: bot vs human vs anonymous (per window)",
+      "gridPos": { "x": 0, "y": 13, "w": 12, "h": 9 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "wikiradar-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT window_start AS time, round(bot_ratio * n_events) AS bot, round((1 - bot_ratio - anon_ratio) * n_events) AS human, round(anon_ratio * n_events) AS anonymous FROM window_metrics WHERE $__timeFilter(window_start) ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "bars", "fillOpacity": 80, "lineWidth": 0, "stacking": { "mode": "normal", "group": "A" }, "showPoints": "never" }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "bot" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "purple" } } ] },
+          { "matcher": { "id": "byName", "options": "human" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } } ] },
+          { "matcher": { "id": "byName", "options": "anonymous" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } } ] }
+        ]
+      },
+      "options": { "legend": { "showLegend": true, "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Recent anomalies",
+      "gridPos": { "x": 12, "y": 13, "w": 12, "h": 9 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "wikiradar-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT window_start AS \"time\", round(score::numeric, 3) AS score, reason, top_title AS \"top title\", has_synthetic AS synthetic FROM window_metrics WHERE is_anomaly AND $__timeFilter(window_start) ORDER BY window_start DESC LIMIT 20"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "time" }, "properties": [ { "id": "unit", "value": "dateTimeAsIso" }, { "id": "custom.width", "value": 170 } ] },
+          { "matcher": { "id": "byName", "options": "score" }, "properties": [ { "id": "custom.width", "value": 70 }, { "id": "custom.cellOptions", "value": { "type": "color-text" } }, { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] },
+          { "matcher": { "id": "byName", "options": "synthetic" }, "properties": [ { "id": "custom.width", "value": 85 } ] }
+        ]
+      },
+      "options": { "showHeader": true, "cellHeight": "sm" }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Most edited pages (last 5 min, click to open)",
+      "gridPos": { "x": 0, "y": 22, "w": 24, "h": 8 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "wikiradar-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT title, count(*) AS edits, count(DISTINCT user_name) AS editors, max(title_url) AS url FROM edits WHERE $__timeFilter(dt) AND dt > (SELECT max(dt) FROM edits) - interval '5 minutes' AND NOT synthetic GROUP BY title ORDER BY edits DESC, title LIMIT 10"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "title" },
+            "properties": [ { "id": "links", "value": [ { "title": "Open on Wikipedia", "url": "${__data.fields.url}", "targetBlank": true } ] } ]
+          },
+          { "matcher": { "id": "byName", "options": "url" }, "properties": [ { "id": "custom.hidden", "value": true } ] },
+          { "matcher": { "id": "byName", "options": "edits" }, "properties": [ { "id": "custom.width", "value": 80 } ] },
+          { "matcher": { "id": "byName", "options": "editors" }, "properties": [ { "id": "custom.width", "value": 80 } ] }
+        ]
+      },
+      "options": { "showHeader": true, "cellHeight": "sm" }
+    }
+  ]
 }

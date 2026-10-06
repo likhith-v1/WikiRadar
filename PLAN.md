@@ -107,7 +107,7 @@ wiki-radar/
   grafana/provisioning/datasources/postgres.yml
   grafana/provisioning/dashboards/dashboards.yml
   grafana/dashboards/wiki-radar.json
-  models/            # iforest.joblib (gitignored), model_card.json (committed)
+  models/            # iforest.joblib and model_card.json (both committed, so a fresh clone runs without retraining; decided 2026-10-06)
   data/              # recorded jsonl (gitignored except a small sample)
   results/           # eval CSVs + PNG plots (committed)
   report/report.md
@@ -158,6 +158,8 @@ Handle missing fields without crashing: count the event as dropped and increment
 - Tumbling windows of **10 seconds** aligned to epoch, keyed by event time `dt`.
 - Watermark = (max `dt` seen) minus **5 seconds**, taken per source: the minimum over Kafka partitions of each partition's max `dt` (files used by train and evaluate are one source). A window closes and is emitted once `window_end <= watermark`. Changed from a global max on 2026-10-06 with user approval: with a global max, catching up on one partition's backlog after a restart dropped the other partitions' events as late.
 - The processor commits each partition's offset only up to the first event of a still-open window, so a restart rebuilds open windows. On resume, re-read events of already-written windows are skipped (they are still inserted idempotently).
+- Idle partitions: a partition that has delivered nothing for 3 s while another partition kept delivering stops holding the watermark back until it sends again. When the whole stream is silent no partition goes idle, so the last window stays open until traffic resumes.
+- Every Kafka (re)assignment (startup, or eviction after a broker stall) rebuilds the processor's in-memory state exactly like a restart, because Kafka re-sends from the last commit. A failed offset commit is only logged; the next commit covers it.
 - Events older than the watermark for an already-closed window are counted in `late_dropped`. They are not added.
 - Empty windows inside the observed range are emitted with zero counts (a gap is information too).
 - `WindowAggregator` is a pure class with no I/O: `add(edit) -> list[ClosedWindow]` and `flush() -> list[ClosedWindow]`. Training, live processing and evaluation all use it.
@@ -264,7 +266,7 @@ Each generator returns `list[Edit]` with `synthetic=True`, timestamps spread acr
 
 ### 3.12 Replay timing (important)
 
-`producer.py --replay FILE --speed S` **re-stamps** event times: `new_dt = now_at_start + (orig_dt - first_orig_dt) / S`. Without this, the replayed historical timestamps and the injector's `now` timestamps would mix and the watermark would jump. The original `dt` is kept in the `orig_dt` field for reference only.
+`producer.py --replay FILE --speed S` **re-stamps** event times: `new_dt = now_at_start + (orig_dt - first_orig_dt) / S`. Without this, the replayed historical timestamps and the injector's `now` timestamps would mix and the watermark would jump. The original `dt` is kept in the `orig_dt` field for reference only. Replay at speed 1 for the demo and the offline fallback: at speed S > 1 each 10 s window holds S times the normal edit count, so the model flags most windows (decided 2026-10-06). `data/sample_demo.jsonl` (15 min of the holdout day, committed) is the demo replay file.
 
 ---
 
@@ -465,7 +467,7 @@ Two full dry runs of the demo from a cold start: once with `--live` and once wit
 ```bash
 docker compose up -d                                   # infra
 uv run scripts/processor.py                            # terminal 1
-uv run scripts/producer.py --live                      # terminal 2  (or --replay data/demo.jsonl --speed 5)
+uv run scripts/producer.py --live                      # terminal 2  (or --replay data/sample_demo.jsonl --speed 1)
 open http://localhost:3000/d/wiki-radar                # dashboard
 uv run scripts/inject.py --attack vandal_wave --intensity 3   # trigger anomaly
 uv run scripts/reset_db.py                             # clean slate before demo
