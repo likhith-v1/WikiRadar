@@ -1,0 +1,21 @@
+{
+  "model": "IsolationForest(n_estimators=200, random_state=42)",
+  "contamination": 0.01,
+  "trained_on": "train_24h.jsonl: 2026-10-03T10:00:00+00:00 to 2026-10-04T10:00:00+00:00",
+  "n_windows": 8640,
+  "n_edits": 226343,
+  "window_seconds": 10,
+  "features": [
+    "edit_count",
+    "bot_ratio",
+    "anon_ratio",
+    "new_page_count",
+    "mean_abs_delta",
+    "min_delta",
+    "revert_ratio",
+    "top_title_share",
+    "unique_users_ratio",
+    "hour_sin",
+    "hour_cos"
+  ]
+}

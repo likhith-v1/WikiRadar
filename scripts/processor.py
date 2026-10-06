@@ -6,7 +6,7 @@ from collections import Counter, defaultdict
 
 from confluent_kafka import Consumer, TopicPartition
 
-from wikiradar import config, db
+from wikiradar import config, db, model
 from wikiradar.features import FEATURE_NAMES, ClosedWindow, WindowAggregator, featurize, window_start
 from wikiradar.schema import from_json
 
@@ -16,8 +16,10 @@ PURGE_SECONDS = 600
 IDLE_SECONDS = 10
 
 
-def window_row(window: ClosedWindow) -> dict:
-    features = dict(zip(FEATURE_NAMES, featurize(window).tolist()))
+def window_row(window: ClosedWindow, artifact: dict) -> dict:
+    x = featurize(window)
+    score, is_anomaly, reason = model.score(artifact, x)
+    features = dict(zip(FEATURE_NAMES, x.tolist()))
     titles = Counter(e.title for e in window.edits)
     return {
         **features,
@@ -25,9 +27,9 @@ def window_row(window: ClosedWindow) -> dict:
         "window_end": window.end,
         "n_events": len(window.edits),
         "top_title": titles.most_common(1)[0][0] if titles else None,
-        "score": 0.0,  # model scoring arrives in Gate 3
-        "is_anomaly": False,
-        "reason": None,
+        "score": score,
+        "is_anomaly": is_anomaly,
+        "reason": reason,
         "has_synthetic": any(e.synthetic for e in window.edits),
     }
 
@@ -37,6 +39,7 @@ def main():
     parser.add_argument("--earliest", action="store_true", help="start a new consumer group at the earliest offset")
     args = parser.parse_args()
 
+    artifact = model.load()
     consumer = Consumer({
         "bootstrap.servers": config.KAFKA_BOOTSTRAP,
         "group.id": config.KAFKA_GROUP,
@@ -93,11 +96,15 @@ def main():
             if not (next_offsets or windows) or (len(edits) < BATCH_SIZE and not windows and now - last_flush < FLUSH_SECONDS):
                 continue
             db.insert_edits(conn, edits)
-            for window in windows:
-                db.upsert_window(conn, window_row(window))
-            if windows:
-                db.update_current_state(conn, windows[-1].end, late_base + agg.late_dropped, 0.0)
-                print(f"windows up to {windows[-1].end:%H:%M:%S}, late {late_base + agg.late_dropped}, "
+            rows = [window_row(w, artifact) for w in windows]
+            for row in rows:
+                db.upsert_window(conn, row)
+                if row["is_anomaly"]:
+                    print(f"ANOMALY {row['window_start']:%H:%M:%S} score {row['score']:+.3f} {row['reason']}"
+                          f"{' [synthetic]' if row['has_synthetic'] else ''}", flush=True)
+            if rows:
+                db.update_current_state(conn, rows[-1]["window_end"], late_base + agg.late_dropped, rows[-1]["score"])
+                print(f"windows up to {rows[-1]['window_end']:%H:%M:%S}, late {late_base + agg.late_dropped}, "
                       f"dropped {dropped}, skipped on resume {skipped}", flush=True)
             if now - last_purge >= PURGE_SECONDS:
                 db.purge_old_edits(conn)
