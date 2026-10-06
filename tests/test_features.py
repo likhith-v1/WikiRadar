@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from wikiradar.features import FEATURE_NAMES, ClosedWindow, WindowAggregator, featurize
+from wikiradar.features import FEATURE_NAMES, ClosedWindow, WindowAggregator, featurize, windows_from_edits
 from wikiradar.schema import Edit
 
 T0 = datetime(2026, 10, 3, 12, 0, 0, tzinfo=timezone.utc)
@@ -119,3 +119,8 @@ def test_idle_source_stops_holding_back_the_watermark():
     assert [(w.start - T0).seconds for w in closed] == [0, 10]
     assert agg.add(edit(36), source=1) == []  # back again: source 0 (at 25) is the slowest now
     assert [(w.start - T0).seconds for w in agg.add(edit(37), source=0)] == [20]
+
+
+def test_windows_from_edits_sorts_and_flushes():
+    windows = windows_from_edits([edit(24), edit(3), edit(12)])  # unsorted, like a merged attack stream
+    assert [((w.start - T0).seconds, len(w.edits)) for w in windows] == [(0, 1), (10, 1), (20, 1)]

@@ -1,6 +1,6 @@
 {
   "model": "IsolationForest(n_estimators=200, random_state=42)",
-  "contamination": 0.01,
+  "contamination": 0.02,
   "trained_on": "train_24h.jsonl: 2026-10-03T10:00:00+00:00 to 2026-10-04T10:00:00+00:00",
   "n_windows": 8640,
   "n_edits": 226343,

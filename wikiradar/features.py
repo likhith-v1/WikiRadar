@@ -103,3 +103,9 @@ def featurize(window: ClosedWindow) -> np.ndarray:
         len({e.user for e in edits}) / n,
         *hour,
     ])
+
+
+def windows_from_edits(edits: list[Edit]) -> list[ClosedWindow]:
+    """Offline windowing (train, evaluate): one source, sorted by event time, so nothing is late."""
+    agg = WindowAggregator()
+    return [w for e in sorted(edits, key=lambda e: e.dt) for w in agg.add(e)] + agg.flush()

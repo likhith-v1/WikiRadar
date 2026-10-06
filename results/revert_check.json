@@ -1,0 +1,8 @@
+{
+  "anomalous_windows": 20,
+  "anomalous_reverted": 11,
+  "anomalous_revisions": 158,
+  "normal_windows": 20,
+  "normal_reverted": 14,
+  "normal_revisions": 445
+}

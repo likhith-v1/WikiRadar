@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from wikiradar.features import FEATURE_NAMES
-from wikiradar.model import fit, reason, score
+from wikiradar.model import fit, reason, score, scores
 
 MEAN = np.array([3.2, 0.36, 0.06, 0.4, 5.3, -5.9, 0.02, 0.05, 0.65, 0.0, 0.0])
 STD = np.array([0.4, 0.16, 0.05, 0.5, 0.9, 1.8, 0.04, 0.02, 0.15, 0.7, 0.7])
@@ -34,4 +34,4 @@ def test_fitted_model_flags_an_outlier_and_not_a_typical_window():
     assert score(artifact, typical)[1] is False
     s, flagged, why = score(artifact, outlier)
     assert flagged and s > 0 and why.startswith("anon_ratio high")
-    assert np.mean(-artifact["model"].decision_function(X) > 0) == pytest.approx(0.01, abs=0.005)
+    assert np.mean(scores(artifact, X) > 0) == pytest.approx(0.01, abs=0.005)

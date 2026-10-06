@@ -183,7 +183,7 @@ Feature order is fixed in `FEATURE_NAMES`, a constant that `train.py` saves into
 
 ### 3.8 Model
 
-- `IsolationForest(n_estimators=200, contamination=0.01, random_state=42)` as the default. Contamination is swept in Gate 6.
+- `IsolationForest(n_estimators=200, contamination=0.02, random_state=42)`. Contamination was swept in Gate 6 and 0.02 chosen with the user on 2026-10-06 (87% detection at intensity 3+ for 17 false alarms per hour; 0.01 gave 60% for 8 per hour).
 - Artifact `models/iforest.joblib` holds `{model, feature_names, train_mean, train_std, contamination, trained_on, n_windows}`.
 - Live outputs per window:
   - `score = -model.decision_function(x)`, so higher means more anomalous and the threshold is 0

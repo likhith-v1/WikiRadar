@@ -13,7 +13,7 @@ MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "iforest.joblib
 REASON_FEATURES = [i for i, f in enumerate(FEATURE_NAMES) if not f.startswith("hour_")]
 
 
-def fit(X: np.ndarray, contamination: float = 0.01) -> dict:
+def fit(X: np.ndarray, contamination: float = 0.02) -> dict:
     model = IsolationForest(n_estimators=200, contamination=contamination, random_state=42).fit(X)
     return {
         "model": model,
@@ -38,7 +38,12 @@ def reason(x: np.ndarray, mean: np.ndarray, std: np.ndarray) -> str:
     return f"{FEATURE_NAMES[i]} {'high' if z[i] > 0 else 'low'} (z={z[i]:+.1f})"
 
 
+def scores(artifact: dict, X: np.ndarray) -> np.ndarray:
+    """Batch anomaly scores: higher is more anomalous, above 0 is flagged."""
+    return -artifact["model"].decision_function(X)
+
+
 def score(artifact: dict, x: np.ndarray) -> tuple[float, bool, str]:
     """Higher is more anomalous; above 0 is flagged."""
-    s = float(-artifact["model"].decision_function(x.reshape(1, -1))[0])
+    s = float(scores(artifact, x.reshape(1, -1))[0])
     return s, s > 0, reason(x, artifact["train_mean"], artifact["train_std"])

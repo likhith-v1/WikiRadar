@@ -1,0 +1,5 @@
+contamination,false_alarms_per_hour,false_alarm_rate,detection_rate_all,detection_rate_intensity_3plus,detection_rate_intensity_3plus_beyond_baseline,attack_windows_flagged_without_attack
+0.005,4.29,0.0119,0.29,0.4,0.4,0
+0.01,8.29,0.023,0.43,0.6,0.583,3
+0.02,17.25,0.0479,0.67,0.867,0.8,7
+0.05,43.58,0.1211,0.86,0.983,0.9,10
