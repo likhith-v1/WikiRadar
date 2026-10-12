@@ -60,7 +60,11 @@ Trigger a synthetic anomaly (types: `vandal_wave`, `edit_war`, `bot_flood`, `pag
 uv run scripts/inject.py --attack vandal_wave --intensity 3
 ```
 
-Clean slate before a demo: stop the processor, then `uv run scripts/reset_db.py`.
+Clean slate before a demo: stop the processor, run `uv run scripts/reset_db.py`, and move its Kafka position to the newest message so it does not replay old edits:
+
+```bash
+docker compose exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka:19092 --group wikiradar-processor --topic wiki-edits --reset-offsets --to-latest --execute
+```
 
 Always replay at `--speed 1`. At higher speeds each window holds several times the normal number of edits, and the model flags almost every window.
 
