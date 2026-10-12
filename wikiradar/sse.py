@@ -49,7 +49,7 @@ class SSEClient:
                         yield data
             except requests.HTTPError as exc:
                 # 403/429 mean the User-Agent was rejected or we are throttled: stop, don't hammer.
-                refusals += exc.response.status_code in (403, 429)
+                refusals = refusals + 1 if exc.response.status_code in (403, 429) else 0
                 if refusals >= 2:
                     raise
                 print(f"sse: {exc}; reconnecting in {delay}s", file=sys.stderr)

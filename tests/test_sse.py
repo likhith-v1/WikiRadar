@@ -27,7 +27,8 @@ def test_joins_multiline_data_and_keeps_last_id():
 
 
 class RefusingResponse:
-    status_code = 429
+    def __init__(self, status_code=429):
+        self.status_code = status_code
 
     def __enter__(self):
         return self
@@ -36,7 +37,15 @@ class RefusingResponse:
         return False
 
     def raise_for_status(self):
-        raise requests.HTTPError("429 Too Many Requests", response=self)
+        raise requests.HTTPError(f"{self.status_code} error", response=self)
+
+
+class StreamingResponse(RefusingResponse):
+    def raise_for_status(self):
+        pass
+
+    def iter_lines(self, decode_unicode=False):
+        return iter(["id: 1", "data: {}", ""])
 
 
 def test_stops_after_two_refusals(monkeypatch):
@@ -46,3 +55,10 @@ def test_stops_after_two_refusals(monkeypatch):
     with pytest.raises(requests.HTTPError):
         next(iter(SSEClient("http://stream", "ua")))
     assert len(calls) == 2
+
+
+def test_other_http_error_between_refusals_resets_the_count(monkeypatch):
+    responses = iter([RefusingResponse(403), RefusingResponse(503), RefusingResponse(403), StreamingResponse(200)])
+    monkeypatch.setattr(sse.requests, "get", lambda *a, **kw: next(responses))
+    monkeypatch.setattr(sse.time, "sleep", lambda s: None)
+    assert next(iter(SSEClient("http://stream", "ua"))) == "{}"

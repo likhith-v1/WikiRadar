@@ -1,6 +1,6 @@
 # Screenshot guide for WikiRadar_Report.docx
 
-The report has 13 figures. Figures 1 (architecture) and 12 (contamination sweep) are already in the document. The other 11 are dashed placeholder boxes. Take the screenshots in the order below; the order keeps the live run going only once.
+The report has 13 figures. Figures 1, 2, 3, 6, 11, 12 and 13 are already in the document. The other 6 (figures 4, 5, 7, 8, 9 and 10) are dashed placeholder boxes. Take the screenshots in the order below; the order keeps the live run going only once.
 
 ## Before you start
 
@@ -151,15 +151,15 @@ Press Ctrl-C in terminals 1 and 2. Run `docker compose down` only if you want to
 
 | Fig | What | Done |
 |---|---|---|
-| 2 | `docker compose ps -a` healthy | [ ] |
-| 3 | Kafka topic describe | [ ] |
+| 2 | `docker compose ps -a` healthy | [x] |
+| 3 | Kafka topic describe | [x] |
 | 4 | Producer live output | [ ] |
 | 5 | Processor output with ANOMALY lines | [ ] |
-| 6 | `train.py` output | [ ] |
+| 6 | `train.py` output | [x] |
 | 7 | psql counts and latest windows | [ ] |
 | 8 | Full dashboard after 15 min | [ ] |
 | 9 | Dashboard after vandal_wave | [ ] |
 | 10 | Recent anomalies after edit_war | [ ] |
-| 11 | `evaluate.py` output | [ ] |
-| 13 | `pytest` passing | [ ] |
+| 11 | `evaluate.py` output | [x] |
+| 13 | `pytest` passing | [x] |
 | - | Title page: USN, semester, section, faculty | [ ] |

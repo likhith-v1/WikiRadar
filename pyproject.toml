@@ -9,7 +9,6 @@ dependencies = [
     "requests",
     "psycopg[binary]>=3",
     "scikit-learn",
-    "pandas",
     "numpy",
     "joblib",
     "python-dotenv",

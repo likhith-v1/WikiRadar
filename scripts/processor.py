@@ -58,6 +58,10 @@ def run(consumer: Consumer, conn, artifact: dict, partitions: int, assigned: lis
         if assigned:
             assigned.clear()
             return msgs
+        if msgs and last_seen and time.monotonic() - max(last_seen.values()) > IDLE_SECONDS:
+            # The whole stream was silent: restart every idle clock, or the first partition back idles the rest.
+            first_seen = time.monotonic()
+            last_seen = dict.fromkeys(last_seen, first_seen)
         for msg in msgs:
             if msg.error():
                 print(f"kafka: {msg.error()}", flush=True)

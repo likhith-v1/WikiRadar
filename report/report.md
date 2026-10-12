@@ -6,7 +6,7 @@ Course: 22CSE544 Data Streaming and Analysis, mini-project.
 
 WikiRadar watches every edit to English Wikipedia as it happens and flags 10-second periods that look unusual, such as a wave of anonymous vandalism, an edit war, or a bot flooding the site. Edits arrive from the Wikimedia EventStreams feed, pass through Apache Kafka, and are grouped into 10-second windows by the time each edit was made, not the time it reached us. Each window becomes 11 numbers (how many edits, what share came from bots or anonymous users, how much text was removed, and so on), and an IsolationForest trained on one full day of real traffic scores it. Results go to PostgreSQL and a Grafana dashboard that refreshes itself every 5 seconds.
 
-On a held-out day with 100 synthetic attacks mixed in, the system flags 87% of attacks at intensity 3 to 5 (80% when only windows that the attack itself pushed over the threshold are counted) at a cost of 17.3 false alarms per hour. Most of those false alarms cluster in five hours when the normal mix of bot and human traffic shifted. Live, an injected attack appears on the dashboard within 7 to 21 seconds, depending on where in its 10-second window it lands, and the pipeline ran for 2 hours unattended with flat memory and no lost or double-counted edits.
+On a held-out day with 100 synthetic attacks mixed in, the system flags 87% of attacks at intensity 3 to 5 (80% when only windows that the attack itself pushed over the threshold are counted) at a cost of 17.3 false alarms per hour. Most of those false alarms cluster in five hours when the normal mix of bot and human traffic shifted. Live, an injected attack appears on the dashboard within 7 to 23 seconds, depending on where in its 10-second window it lands, and the pipeline ran for 2 hours unattended with flat memory and no lost or double-counted edits.
 
 ## 1. Architecture
 
@@ -30,7 +30,7 @@ flowchart TD
 | 5 | Database | PostgreSQL 16 | A serving layer between the processor and the dashboard: stores results durably and answers the dashboard's queries |
 | 6 | Visualization | Grafana 12, provisioned from files | A dashboard that updates itself from a live data source, with no custom frontend |
 
-Infrastructure (Kafka, Postgres, Grafana) runs in Docker; the Python services run on the host. The whole system starts with `docker compose up -d` and two commands, and there is an offline mode (`--replay`) for demos without network.
+Infrastructure (Kafka, Postgres, Grafana) runs in Docker; the Python services run on the host. The whole system starts with `docker compose up -d` and three commands (processor, producer, open Grafana), and there is an offline mode (`--replay`) for demos without network.
 
 ## 2. Dataset
 
@@ -62,7 +62,7 @@ Wikipedia's stream can replay roughly the last 7 days on request (`?since=`), so
 | `train_24h.jsonl` | Oct 3 10:00 to Oct 4 10:00 | 226,343 | 8,640 |
 | `holdout_24h.jsonl` | Oct 4 10:00 to Oct 5 10:00 | 216,653 | 8,640 |
 
-Both files cover the full 24 hours with no duplicates and no gap longer than 11 seconds. On average a window holds about 26 edits. Traffic follows a strong daily cycle: on the training day it ranged from 4,643 edits per hour (10:00 UTC) to 13,226 (20:00 UTC), and the share of edits made by bots ranged from 7% to 53% by hour. About 6% of edits come from anonymous users.
+Both files cover the full 24 hours with no duplicates and no gap longer than about 11 seconds. On average a window holds about 26 edits. Traffic follows a strong daily cycle: on the training day it ranged from 4,643 edits per hour (10:00 UTC) to 13,226 (20:00 UTC), and the share of edits made by bots ranged from 7% to 53% by hour. About 6% of edits come from anonymous users.
 
 ## 3. Layer by layer
 
@@ -102,9 +102,9 @@ Kafka is what lets the processor be stopped and restarted. Messages stay in the 
 
 The processor groups edits into 10-second tumbling windows (12:00:00 to 12:00:10, 12:00:10 to 12:00:20, ...) by **event time**, the moment the edit was made on Wikipedia, not by **processing time**, the moment the processor happens to read it. The difference matters whenever reading is delayed: after a restart the processor reads several minutes of backlog in a few seconds, and with processing-time windows that backlog would collapse into one huge window. With event-time windows the backlog lands in the windows it belongs to, and replay at speed 20 still produced windows 10 seconds apart in event time.
 
-Event time creates a new problem: the processor never knows for sure that a window is complete, because an older edit could still arrive. The **watermark** answers that. It is the latest event time seen minus 5 seconds; once a window's end is behind the watermark, the window is closed, scored and written. An edit that arrives later than that for an already-closed window is counted as late and not added. In normal running no edits were late.
+Event time creates a new problem: the processor never knows for sure that a window is complete, because an older edit could still arrive. The **watermark** answers that. It is the latest event time seen minus 5 seconds (tracked per partition, as explained below); once a window's end is behind the watermark, the window is closed, scored and written. An edit that arrives later than that for an already-closed window is counted as late and not added. In normal running no edits were late.
 
-The first version used one watermark for the whole stream. Testing a restart exposed a flaw: Kafka delivered one partition's backlog first, which pushed the watermark to the present, and the other two partitions' backlog was then dropped as late (43 edits, 4 windows undercounted). The fix, used by Flink and Kafka Streams as well, is a watermark per partition: the window closes only when the slowest partition has moved past it.
+The first version used one watermark for the whole stream. Testing a restart exposed a flaw: Kafka delivered one partition's backlog first, which pushed the watermark to the present, and the other two partitions' backlog was then dropped as late (43 edits, 4 windows undercounted). The fix, the same idea as Flink's per-partition watermarks, is a watermark per partition: the window closes only when the slowest partition has moved past it.
 
 ```python
 def add(self, edit: Edit, source: int = 0) -> list[ClosedWindow]:
@@ -197,7 +197,7 @@ The evaluation runs offline through the same windowing and feature code, which m
 | `page_blank` | a few edits removing 20 kB to 100 kB each |
 | `spam_pages` | a burst of new pages from new or anonymous accounts |
 
-Intensity scales the attack from 1 to 5. For four types it multiplies the number of edits (vandal_wave adds 6 anonymous edits per intensity step, edit_war 4 alternating edits, bot_flood 15 bot edits, spam_pages 4 new pages); for page_blank it scales the size of each removal from 20 kB up to 100 kB. Each attack is placed inside one 10-second window of the holdout day. An attack counts as detected if its window is flagged. Because a small share of windows is flagged anyway, each attack also records whether its window was already flagged without it; the "beyond chance" figure below counts only windows the attack itself pushed over the threshold.
+Intensity scales the attack from 1 to 5. For four types it multiplies the number of edits (vandal_wave adds 6 anonymous edits per intensity step, edit_war 4 alternating edits, bot_flood 15 bot edits, spam_pages 4 new pages); for page_blank it scales the size of each removal from 20 kB up to 100 kB and the number of edits from 1 to 3. Each attack is placed inside one 10-second window of the holdout day. An attack counts as detected if its window is flagged. Because a small share of windows is flagged anyway, each attack also records whether its window was already flagged without it; the "beyond chance" figure below counts only windows the attack itself pushed over the threshold.
 
 ![Contamination sweep](../results/contamination_sweep.png)
 
@@ -208,7 +208,7 @@ Intensity scales the attack from 1 to 5. For four types it multiplies the number
 | **0.02 (chosen)** | **17.3** (4.8% of windows) | **87%** (80% beyond chance) | **67%** |
 | 0.05 | 43.6 | 98% | 86% |
 
-The project's target was 70% detection at intensity 3 and above. The default contamination of 0.01 reached only 60%, so 0.02 was chosen: it doubles the false alarms but clears the target even when chance detections are removed. The value was chosen on the same holdout attacks it is measured on, so 87% is somewhat optimistic.
+The project's target was 70% detection at intensity 3 and above. The initial contamination of 0.01 reached only 60%, so 0.02 was chosen: it doubles the false alarms but clears the target even when chance detections are removed. The value was chosen on the same holdout attacks it is measured on, so 87% is somewhat optimistic.
 
 By attack type at 0.02: vandal_wave 85%, edit_war 80%, spam_pages 75%, bot_flood 55%, page_blank 40%. By intensity 1 to 5: 20%, 55%, 65%, 95%, 100%. Edit wars are easy because one page suddenly receives a large share of all edits. Bot floods are hard because about a third of normal traffic already comes from bots, so one more busy bot does not stand out much. IsolationForest is also weak on anomalies that are extreme in only one feature, because each tree splits on randomly chosen features; attacks that move several features at once (vandal_wave raises the anonymous share, the removed bytes and the number of distinct users together) are caught far more reliably.
 
@@ -221,7 +221,7 @@ By attack type at 0.02: vandal_wave 85%, edit_war 80%, spam_pages 75%, bot_flood
 | Test | Result |
 |---|---|
 | Training | 8,640 windows, 2.00% flagged by design |
-| Injected attack to red marker and table row (attack started at the worst moment, the start of a window) | 16.2 to 18.7 s for vandal_wave, page_blank and spam_pages; edit_war once 20.8 s. Injected later in a window: 7 to 10 s |
+| Injected attack to red marker and table row (attack started at the worst moment, the start of a window) | 16.2 to 18.7 s for vandal_wave, page_blank and spam_pages; edit_war once 20.8 s, and 23.0 s in the final live rehearsal. Injected later in a window: 7 to 10 s |
 | 2 hours unattended, live | No crash; 11 stream disconnects all resumed; processor lag mean 12.7 s, max 19.6 s; memory flat (processor about 180 MB, producer about 46 MB) |
 | Integrity after that run | 731 windows, no gaps, no duplicate edits, every window's count equal to the edits stored |
 | Crash and stall | `kill -9` restart and a 60 s Kafka freeze: processor recovers, every window still matches the stored edits |
@@ -240,4 +240,4 @@ The detection delay has a floor built into the design: a window is 10 seconds lo
 
 ## 6. Conclusion
 
-WikiRadar is a complete streaming pipeline from a public live source to a self-updating dashboard: Kafka buffers and replays the feed, the processor windows edits by when they happened using a per-partition watermark, an IsolationForest trained on a day of real traffic scores every window, and Postgres and Grafana present the results within about 15 to 20 seconds. The design choices that mattered most were event-time windows, idempotent writes with offsets saved only after the database commit, and keeping all feature code in one shared module. They are why a crash, a broker stall or a replay leaves every window correct, and why the offline evaluation measures exactly what runs live. The evaluation also shows the method's limits: an unsupervised model trained on one day finds strong, multi-signal attacks reliably but struggles with attacks that hide in normal bot traffic, and it mistakes an unusual but harmless shift in daily traffic for an anomaly.
+WikiRadar is a complete streaming pipeline from a public live source to a self-updating dashboard: Kafka buffers and replays the feed, the processor windows edits by when they happened using a per-partition watermark, an IsolationForest trained on a day of real traffic scores every window, and Postgres and Grafana present the results typically within 15 to 20 seconds. The design choices that mattered most were event-time windows, idempotent writes with offsets saved only after the database commit, and keeping all feature code in one shared module. They are why a crash, a broker stall or a replay leaves every window correct, and why the offline evaluation measures exactly what runs live. The evaluation also shows the method's limits: an unsupervised model trained on one day finds strong, multi-signal attacks reliably but struggles with attacks that hide in normal bot traffic, and it mistakes an unusual but harmless shift in daily traffic for an anomaly.

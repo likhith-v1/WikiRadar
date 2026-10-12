@@ -84,7 +84,7 @@ Do not change these without stopping to ask.
 ### 3.1 Stack
 
 - Python 3.11+, managed with `uv` (fall back to `python -m venv` if `uv` is missing)
-- Python deps: `confluent-kafka`, `requests`, `psycopg[binary]` (v3), `scikit-learn`, `pandas`, `numpy`, `joblib`, `python-dotenv`, `pytest`
+- Python deps: `confluent-kafka`, `requests`, `psycopg[binary]` (v3), `scikit-learn`, `numpy`, `joblib`, `python-dotenv`, `matplotlib`, `pytest`
 - Docker images: `apache/kafka` (3.9.x or newer, pinned), `postgres:16`, `grafana/grafana-oss` (pinned 11.x or newer)
 
 ### 3.2 Repo layout

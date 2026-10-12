@@ -154,7 +154,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--train", type=Path, default=Path("data/train_24h.jsonl"))
     parser.add_argument("--holdout", type=Path, default=Path("data/holdout_24h.jsonl"))
-    parser.add_argument("--contamination", type=float, default=0.02, help="value for the per-hour and per-attack tables")
+    parser.add_argument("--contamination", type=float, default=0.02, choices=CONTAMINATIONS,
+                        help="value for the per-hour and per-attack tables")
     parser.add_argument("--revert-check", action="store_true", help="also query the MediaWiki API (about 1 min)")
     args = parser.parse_args()
     RESULTS.mkdir(exist_ok=True)

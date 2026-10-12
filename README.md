@@ -48,7 +48,7 @@ cp .env.example .env                   # set WIKI_USER_AGENT to include your ema
 uv sync
 docker compose up -d                   # Kafka, Postgres, Grafana; wait until `docker compose ps` shows healthy
 uv run scripts/processor.py            # terminal 1: start before the producer
-uv run scripts/producer.py --live      # terminal 2 (offline: --replay data/sample_demo.jsonl --speed 1)
+uv run scripts/producer.py --live      # terminal 2 (offline: --replay data/sample_demo.jsonl --speed 1; add UV_OFFLINE=1 in front if uv tries the network)
 open http://localhost:3000/d/wiki-radar
 ```
 
@@ -73,10 +73,10 @@ Always replay at `--speed 1`. At higher speeds each window holds several times t
 1. Reset the tables and open the empty dashboard. Explain the six layers from the architecture diagram (30 s).
 2. Start the processor, then the producer (`--live`, or `--replay data/sample_demo.jsonl --speed 1` without network). The tiles count up and the curves draw themselves (60 s).
 3. Explain one panel: bot vs. human vs. anonymous edits, and the most edited pages, whose links open the real Wikipedia pages (45 s).
-4. Run `uv run scripts/inject.py --attack vandal_wave --intensity 3`. Within about 20 seconds a red annotation appears and the anomalies table shows `anon_ratio high`. Explain that training and live scoring share `wikiradar/features.py` (60 s).
+4. Run `uv run scripts/inject.py --attack vandal_wave --intensity 3`. Typically within 20 seconds (at most about 25) a red annotation appears and the anomalies table shows `anon_ratio high`. Explain that training and live scoring share `wikiradar/features.py` (60 s).
 5. Run `uv run scripts/inject.py --attack edit_war --intensity 4`. It is flagged with a different reason, `top_title_share high` (30 s).
 6. Pause the producer with Ctrl-Z in its terminal: the page keeps refreshing but the numbers freeze. Resume with `fg` (30 s).
-7. Close with the contamination sweep plot and detection numbers in `results/` (produced in Gate 6) (45 s).
+7. Close with the contamination sweep plot and detection numbers in `results/` (45 s).
 
 ## Troubleshooting
 
@@ -92,7 +92,7 @@ Always replay at `--speed 1`. At higher speeds each window holds several times t
 
 ## Retraining
 
-`models/iforest.joblib` is committed. To retrain on fresh data (Wikimedia keeps about 7 days of history):
+`models/iforest.joblib` is committed. To retrain on fresh data, replace the `--since` value with a start time in the last 7 days (Wikimedia keeps about 7 days of history):
 
 ```bash
 uv run scripts/producer.py --record data/train_24h.jsonl --since 2026-10-03T10:00:00Z --hours 24   # about 1 h
@@ -110,13 +110,13 @@ uv run pytest
 | Path | Purpose |
 |---|---|
 | `wikiradar/` | Shared library: config, SSE client, schema, windowing and features, model scoring, attacks, db |
-| `scripts/` | Entry points: producer, processor, inject, train, reset_db (evaluate arrives in Gate 6) |
+| `scripts/` | Entry points: producer, processor, inject, train, evaluate, reset_db |
 | `sql/` | Postgres schema |
 | `grafana/` | Provisioned datasource and dashboard |
 | `models/` | Trained model and model card |
 | `data/` | Recorded edits (gitignored) and small committed samples |
-| `results/` | Dashboard screenshot; evaluation outputs from Gate 6 |
-| `report/` | Final report (Gate 7) |
+| `results/` | Dashboard screenshot; evaluation outputs (`scripts/evaluate.py`) |
+| `report/` | Final report, recording runbook and screenshots |
 | `tests/` | pytest suite |
 
 ## License

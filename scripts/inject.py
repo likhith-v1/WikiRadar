@@ -1,6 +1,7 @@
 """Publish a synthetic attack (synthetic=true) to wiki-edits, starting now and ending in the current window."""
 
 import argparse
+import sys
 from datetime import datetime, timedelta, timezone
 
 from confluent_kafka import Producer
@@ -23,7 +24,9 @@ def main():
     producer = Producer({"bootstrap.servers": config.KAFKA_BOOTSTRAP, "acks": "all", "enable.idempotence": True})
     for edit in edits:
         producer.produce(config.KAFKA_TOPIC, key=edit.title.encode(), value=to_json(edit).encode())
-    producer.flush()
+    undelivered = producer.flush(10)
+    if undelivered:
+        sys.exit(f"Kafka not reachable at {config.KAFKA_BOOTSTRAP}: {undelivered} of {len(edits)} edits not delivered")
     print(f"injected {args.attack} intensity {args.intensity}: {len(edits)} edits from {edits[0].dt:%H:%M:%S} UTC")
 
 
