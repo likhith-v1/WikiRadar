@@ -26,19 +26,19 @@ This file is the single source of truth for the build. Work gate by gate. Do not
 
 **Course requirements (the guide's submission checklist):**
 
-- [ ] Streaming tool: Kafka, working
-- [ ] ML algorithm: IsolationForest, trained offline and scoring live
-- [ ] Visualization: Grafana, refreshing itself from a live data source
-- [ ] Database serving layer between the processor and the dashboard: PostgreSQL
-- [ ] Pipeline runs end to end, dashboard updates on its own
-- [ ] Written report and a live demo or screen recording
+- [x] Streaming tool: Kafka, working
+- [x] ML algorithm: IsolationForest, trained offline and scoring live
+- [x] Visualization: Grafana, refreshing itself from a live data source
+- [x] Database serving layer between the processor and the dashboard: PostgreSQL
+- [x] Pipeline runs end to end, dashboard updates on its own
+- [x] Written report and a live demo or screen recording (live demo; report is `DSA Mini Project Likhith 23BTRCL257.pdf`)
 
 **Project-specific success criteria:**
 
-- [ ] `docker compose up -d` plus three commands (`processor`, `producer`, open Grafana) brings up the whole system
-- [ ] Works offline using `--replay` (the fallback if campus Wi-Fi fails)
-- [ ] `inject.py` triggers a visible anomaly marker within 20 seconds
-- [ ] Evaluation reports detection rate, false alarms per hour and a contamination sweep
+- [x] `docker compose up -d` plus three commands (`processor`, `producer`, open Grafana) brings up the whole system
+- [x] Works offline using `--replay` (the fallback if campus Wi-Fi fails)
+- [x] `inject.py` triggers a visible anomaly marker within 20 seconds (typical 7 to 19 s; worst case measured 23 s, see PROGRESS Gate 8)
+- [x] Evaluation reports detection rate, false alarms per hour and a contamination sweep
 
 ---
 
@@ -489,11 +489,11 @@ uv run scripts/reset_db.py                             # clean slate before demo
 
 ## 7. Definition of done
 
-- [ ] Gates 0 to 7 are marked done in `PROGRESS.md`, with check output
-- [ ] Every item in section 1 is checked
-- [ ] `pytest` passes
-- [ ] A fresh clone plus the README steps works
-- [ ] `report/report.md`, `results/`, the dashboard screenshot and the recording all exist
+- [x] Gates 0 to 7 are marked done in `PROGRESS.md`, with check output
+- [x] Every item in section 1 is checked
+- [x] `pytest` passes
+- [x] A fresh clone plus the README steps works
+- [x] The report (`DSA Mini Project Likhith 23BTRCL257.pdf`, which replaced `report/report.md`), `results/` and the dashboard screenshot exist; the recording is replaced by a live demo (user decision, 2026-10-13)
 
 ---
 
