@@ -116,7 +116,7 @@ uv run pytest
 | `models/` | Trained model and model card |
 | `data/` | Recorded edits (gitignored) and small committed samples |
 | `results/` | Dashboard screenshot; evaluation outputs (`scripts/evaluate.py`) |
-| `report/` | Final report, recording runbook and screenshots |
+| `DSA Mini Project Likhith 23BTRCL257.pdf` | Final report |
 | `tests/` | pytest suite |
 
 ## License
